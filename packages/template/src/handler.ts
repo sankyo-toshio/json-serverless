@@ -9,6 +9,9 @@ import {
   CloudEnvironment,
   CoreApp,
   FileStorageAdapter,
+  AuthStrategy,
+  ApiKeyStrategy,
+  PublicStrategy,
 } from 'json-serverless-lib';
 
 import fs from 'fs';
@@ -28,22 +31,32 @@ const swagger = new Swagger(
   appConfig.routes.swaggerSpecRoutePath
 );
 
+
+
 let core: CoreApp | undefined;
 if (process.env.IS_OFFLINE) {
+  const authStrategy: AuthStrategy = appConfig.enableApiKeyAuth
+  ? new ApiKeyStrategy(server, 'testff')
+  : new PublicStrategy();
   core = new CoreApp(
     appConfig,
     server,
     new FileStorageAdapter('db.json'),
     swagger,
-    environment
+    environment,
+    authStrategy
   );
 } else {
+  const authStrategy: AuthStrategy = appConfig.enableApiKeyAuth
+  ? new ApiKeyStrategy(server, 'testff')
+  : new PublicStrategy();
   core = new CoreApp(
     appConfig,
     server,
     new S3StorageAdapter(environment.s3Bucket, environment.s3File),
     swagger,
-    environment
+    environment,
+    authStrategy
   );
 }
 

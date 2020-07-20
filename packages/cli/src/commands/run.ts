@@ -1,5 +1,12 @@
 import { Command, flags } from '@oclif/command';
-import { startServer, AppConfig, LogLevel } from 'json-serverless-lib';
+import {
+  startServer,
+  AppConfig,
+  LogLevel,
+  PublicStrategy,
+  ApiKeyStrategy,
+  ServerFactory,
+} from 'json-serverless-lib';
 import express from 'express';
 import { Helpers } from '../actions/helpers';
 import cli from 'cli-ux';
@@ -10,14 +17,7 @@ export class Run extends Command {
   static flags = {
     help: flags.help({ char: 'h' }),
     // flag with no value (-e, --env)
-    env: flags.string({
-      char: 'e',
-      description: 'environment', // help description for flag
-      hidden: false, // hide from help
-      options: ['development', 'local'],
-      default: 'local',
-      required: false,
-    }),
+
     swagger: flags.boolean({
       char: 's', // shorter flag version
       description: 'enable or disable swagger interface support', // help description for flag
@@ -26,6 +26,21 @@ export class Run extends Command {
       required: false, // make flag required (this is not common and you should probably use an argument instead)
       allowNo: true,
     }),
+    apikeyauth: flags.boolean({
+      char: 'a', // shorter flag version
+      description: 'enable api key authentication to access api', // help description for flag
+      hidden: false, // hide from help
+      default: false, // default value if flag not passed (can be a function that returns a string or undefined)
+      required: false, // make flag required (this is not common and you should probably use an argument instead)
+    }),
+    apikey: flags.string({
+      description: 'set your own static api key', // help description for flag
+      hidden: false, // hide from help
+      default: '303e526d-1939-4804-a5be-fa2e1997eed5', // default value if flag not passed (can be a function that returns a string or undefined)
+      required: false, // make flag required (this is not common and you should probably use an argument instead)
+      dependsOn: ['apikeyauth'],
+    }),
+
     readonly: flags.boolean({
       char: 'r', // shorter flag version
       description: 'set api to readonly (true) or writeable (false)', // help description for flag
@@ -91,55 +106,97 @@ export class Run extends Command {
     defaultConfig.routes.swaggerSpecRoutePath = flags.apispecRoute;
     defaultConfig.routes.swaggerUIRoutePath = flags.swaggeruiRoute;
 
+    let apikey = null;
+    let authStrategy = new PublicStrategy();
+
+    if (flags.apikeyauth) {
+      defaultConfig.enableApiKeyAuth = flags.apikeyauth;
+      authStrategy = new ApiKeyStrategy(server, flags.apikey);
+    }
+
     defaultConfig.jsonFile = args.file;
-    if (args.file && flags.env) {
-      const promise = startServer(
-        flags.env,
+    if (args.file) {
+      const promise = await ServerFactory.createServer(
+        'local',
         server,
         defaultConfig,
-        this.config.root + '/package.json'
+        this.config.root + '/package.json',
+        authStrategy
       );
       await promise;
-      this.log();
-      this.log();
-
-      if (flags.swagger) {
-        cli.table(
-          [
-            {
-              text: `${chalk.blueBright('Swagger UI')}`,
-              link: 'http://localhost:3000/ui',
-            },
-            {
-              text: `${chalk.blueBright('GraphiQL')}`,
-              link: 'http://localhost:3000/graphql',
-            },
-            {
-              text: `${chalk.blueBright('Swagger Specification')}`,
-              link: 'http://localhost:3000/api-spec',
-            },
-            {
-              text: `${chalk.blueBright('API Routes')}`,
-              link: 'http://localhost:3000' + flags.apiRoute + '/{routes}',
-            },
-          ],
-          { text: { minWidth: 30 }, link: { minWidth: 20 } },
-          { 'no-header': true }
-        );
-      } else {
-        cli.table(
-          [
-            {
-              text: `${chalk.blueBright('API Routes')}`,
-              link: 'http://localhost:3000' + flags.apiRoute + '/{routes}',
-            },
-          ],
-          { text: { minWidth: 30 }, link: { minWidth: 20 } },
-          { 'no-header': true }
-        );
-      }
-      this.log();
-      this.log();
+      this.createCLIOutput(flags);
     }
+  }
+
+  private createCLIOutput(flags: {
+    help: void;
+    swagger: boolean;
+    apikeyauth: boolean;
+    apikey: string;
+    readonly: boolean;
+    loglevel: string;
+    apiRoute: string;
+    graphqlRoute: string;
+    apispecRoute: string;
+    swaggeruiRoute: string;
+  }) {
+    if (flags.apikeyauth) {
+      this.log();
+      this.log();
+      this.log(
+        'This api is secured by an apikey - use in header {"authorization": apikey}'
+      );
+      this.log();
+      cli.table(
+        [
+          {
+            text: `${chalk.greenBright('ApiKey')}`,
+            link: flags.apikey,
+          },
+        ],
+        { text: { minWidth: 30 }, link: { minWidth: 20 } },
+        { 'no-header': true }
+      );
+    }
+    this.log();
+    this.log();
+
+    if (flags.swagger) {
+      cli.table(
+        [
+          {
+            text: `${chalk.blueBright('Swagger UI')}`,
+            link: 'http://localhost:3000/ui',
+          },
+          {
+            text: `${chalk.blueBright('GraphiQL')}`,
+            link: 'http://localhost:3000/graphql',
+          },
+          {
+            text: `${chalk.blueBright('Swagger Specification')}`,
+            link: 'http://localhost:3000/api-spec',
+          },
+          {
+            text: `${chalk.blueBright('API Routes')}`,
+            link: 'http://localhost:3000' + flags.apiRoute + '/{routes}',
+          },
+        ],
+        { text: { minWidth: 30 }, link: { minWidth: 20 } },
+        { 'no-header': true }
+      );
+    } else {
+      cli.table(
+        [
+          {
+            text: `${chalk.blueBright('API Routes')}`,
+            link: 'http://localhost:3000' + flags.apiRoute + '/{routes}',
+          },
+        ],
+        { text: { minWidth: 30 }, link: { minWidth: 20 } },
+        { 'no-header': true }
+      );
+    }
+    this.log();
+    this.log();
   }
 }

@@ -7,3 +7,4 @@ export * from './specifications';
 export * from './storage';
 export * from './validations';
 export * from './utils';
+export * from './auth';

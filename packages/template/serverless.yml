@@ -40,8 +40,6 @@ provider:
   apiGateway: # Optional API Gateway global config
     binaryMediaTypes: # Optional binary media types the API might return
       - '*/*'
-  apiKeys:
-    - ${self:service}.${self:provider.stage}
   iamRoleStatements:
     - Effect: 'Allow'
       Action:
@@ -63,7 +61,6 @@ functions:
       - http:
           path: /
           method: ANY
-          private: ${self:custom.appconfig.enableApiKeyAuth}
           cors:
             origin: '*' # <-- Specify allowed origin
             headers: # <-- Specify allowed headers
@@ -77,7 +74,6 @@ functions:
       - http:
           path: '{proxy+}'
           method: ANY
-          private: ${self:custom.appconfig.enableApiKeyAuth}
           cors:
             origin: '*' # <-- Specify allowed origin
             headers: # <-- Specify allowed headers
