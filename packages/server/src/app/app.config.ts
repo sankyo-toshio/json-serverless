@@ -7,6 +7,7 @@ export class AppConfig {
   logLevel = LogLevel.info;
   stackName = 'jsonsls';
   routes = new AppRoutes();
+  customeRoutes  = null;
   static merge = <T, U>(t: T, u: U) => Object.assign({}, t, u);
 }
 

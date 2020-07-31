@@ -103,6 +103,9 @@ export class CoreApp {
       1
     );
     this.server.use(middlewares);
+    this.server.use(
+      jsonServer.rewriter(appConfig.customeRoutes)
+    );
     this.server.use(appConfig.routes.apiRoutePath, router);
     if (!this.swaggerSpec && appConfig.enableSwagger) {
       this.swaggerSpec = this.apispec.generateSpecification(db, true);
